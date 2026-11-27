@@ -36,7 +36,12 @@ final class CursorUsageReader {
         session: URLSession,
         databaseURL: URL
     ) throws -> CursorUsageSnapshot {
-        guard let credentials = CursorAuthStore.loadCredentials(databaseURL: databaseURL) else {
+        let credentials: CursorAuthCredentials
+        do {
+            credentials = try CursorAuthStore.loadCredentialsOrThrow(databaseURL: databaseURL)
+        } catch let error as CursorAuthStoreError {
+            throw error
+        } catch {
             throw CursorUsageReaderError.notLoggedIn
         }
 
@@ -89,6 +94,9 @@ final class CursorUsageReader {
     }
 
     private static func userFacingReason(for error: Error) -> String {
+        if let authError = error as? CursorAuthStoreError {
+            return authError.localizedDescription
+        }
         if let readerError = error as? CursorUsageReaderError {
             return readerError.localizedDescription
         }

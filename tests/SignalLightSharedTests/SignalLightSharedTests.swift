@@ -69,6 +69,21 @@ struct SignalLightSharedTests {
     }
 
     @Test
+    func cursorSafeStorageDecryptsV10Envelope() throws {
+        try SignalLightSharedTestSupport.cursorSafeStorageDecryptsV10Envelope()
+    }
+
+    @Test
+    func cursorSafeStorageKeepsPlaintextToken() throws {
+        try SignalLightSharedTestSupport.cursorSafeStorageKeepsPlaintextToken()
+    }
+
+    @Test
+    func cursorSafeStorageRejectsBadPassword() throws {
+        try SignalLightSharedTestSupport.cursorSafeStorageRejectsBadPassword()
+    }
+
+    @Test
     func cursorSessionSourceDetection() throws {
         try SignalLightSharedTestSupport.cursorSessionSourceDetection()
     }
@@ -161,6 +176,18 @@ final class SignalLightSharedTests: XCTestCase {
 
     func testCursorQuotaRequiresPlanUsage() throws {
         try SignalLightSharedTestSupport.cursorQuotaRequiresPlanUsage()
+    }
+
+    func testCursorSafeStorageDecryptsV10Envelope() throws {
+        try SignalLightSharedTestSupport.cursorSafeStorageDecryptsV10Envelope()
+    }
+
+    func testCursorSafeStorageKeepsPlaintextToken() throws {
+        try SignalLightSharedTestSupport.cursorSafeStorageKeepsPlaintextToken()
+    }
+
+    func testCursorSafeStorageRejectsBadPassword() throws {
+        try SignalLightSharedTestSupport.cursorSafeStorageRejectsBadPassword()
     }
 
     func testCursorSessionSourceDetection() throws {
@@ -432,6 +459,43 @@ private enum SignalLightSharedTestSupport {
             return
         }
         throw TestFailure("Expected missing plan usage decoding error")
+    }
+
+    static func cursorSafeStorageDecryptsV10Envelope() throws {
+        let stored = "cursor-safe-storage:v1:djEwAOpFcbf//ZeZv2Mr1ypFQJVUr4npPteUVvYuBi6X6xhzT0HKqAOTiWDFpRLB/JDHCLE4iBznR+BjpR1gPmaYZ+kaD/GiSp9wBE86qfTMT2Q="
+        let token = try CursorSafeStorage.resolveAccessToken(
+            stored,
+            passwordProvider: { "test-password-for-signal-light" }
+        )
+        try expectEqual(
+            token,
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.signature"
+        )
+    }
+
+    static func cursorSafeStorageKeepsPlaintextToken() throws {
+        let plaintext = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwbGFpbnRleHQifQ.signature"
+        let token = try CursorSafeStorage.resolveAccessToken(
+            plaintext,
+            passwordProvider: {
+                throw TestFailure("password provider should not be called for plaintext tokens")
+            }
+        )
+        try expectEqual(token, plaintext)
+    }
+
+    static func cursorSafeStorageRejectsBadPassword() throws {
+        let stored = "cursor-safe-storage:v1:djEwAOpFcbf//ZeZv2Mr1ypFQJVUr4npPteUVvYuBi6X6xhzT0HKqAOTiWDFpRLB/JDHCLE4iBznR+BjpR1gPmaYZ+kaD/GiSp9wBE86qfTMT2Q="
+        do {
+            _ = try CursorSafeStorage.resolveAccessToken(
+                stored,
+                passwordProvider: { "wrong-password" }
+            )
+        } catch let error as CursorSafeStorageError {
+            try expectEqual(error, .decryptionFailed)
+            return
+        }
+        throw TestFailure("Expected decryptionFailed for wrong password")
     }
 
     static func cursorSessionSourceDetection() throws {
